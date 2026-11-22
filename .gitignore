@@ -1,0 +1,6 @@
+.venv
+*.mod
+boggle
+*.log
+build
+bin/*
