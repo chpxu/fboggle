@@ -9,14 +9,15 @@ module global
 end module global
 
 program Boggle
+   use, intrinsic :: iso_fortran_env, idp => int64
    use global
    implicit none
    character(len=256) :: dictionary_file, params_file, output_file
    character(len=MAX_WORD_LENGTH) :: tword
    character(len=MAX_WORD_LENGTH), allocatable :: twords(:)
-   integer :: outputios, output_unit
-   integer :: found_count, tcount, merge_position, start_row, start_column, start_index
-   integer ::  i
+   integer(idp) :: outputios, outputunit
+   integer(idp) :: found_count, tcount, merge_position, start_row, start_column, start_index, local_depth
+   integer(idp) ::  i
    logical, allocatable :: tvisited(:, :)
    dictionary_file = 'sowpods.txt'
    if (command_argument_count() >= 1) then
@@ -38,12 +39,14 @@ program Boggle
    tvisited = .false.
    tword = " "
    tcount = 0
+
+   local_depth = 1
    ! Do word search
    !$omp do schedule(dynamic)
    do start_index = 1, grid_size*grid_size
       start_row = (start_index - 1)/grid_size + 1
       start_column = mod(start_index - 1, grid_size) + 1
-      call word_search(start_row, start_column, 1, tword, &
+      call word_search(start_row, start_column, local_depth, tword, &
                        tvisited, twords, tcount)
    end do
    !$omp end do
@@ -61,12 +64,12 @@ program Boggle
    call remove_duplicates(found_words, found_count)
    print '(/1x, A, I10, A)', 'Found ', found_count, ' word(s):'
    output_file = "found.txt"
-   open (newunit=output_unit, file=output_file, status='replace', action='write', iostat=outputios)
+   open (newunit=outputunit, file=output_file, status='replace', action='write', iostat=outputios)
    if (outputios /= 0) stop "Error writing to output file"
    do i = 1, found_count
-      write (output_unit, '(A)') trim(found_words(i))
+      write (outputunit, '(A)') trim(found_words(i))
    end do
-   close (output_unit)
+   close (outputunit)
 contains
    ! -------------------------------------------------------------------
    ! subroutine word_search
@@ -94,24 +97,28 @@ contains
   !!  character(len=MAX_WORD_LENGTH), intent(inout) :: local_words(:)
   !!    A thread's store of words it has found
   !!  USES
+  !!    intrinsic, iso_fortran_env, idp => int64
   !!    global, only: dictionary, word_count, MAX_WORD_LENGTH, MIN_WORD_LENGTH
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
   !!   21/11/2026
   !!  MODIFICATION HISTORY
+  !!   23/11/2026 chpxu: iso_fortran_env int64
    recursive subroutine word_search(row, column, depth, &
                                     current_word, visited, local_words, local_count)
+      
+      use, intrinsic :: iso_fortran_env, idp => int64
       use global, only: dictionary, word_count, MAX_WORD_LENGTH, MIN_WORD_LENGTH
       implicit none
-      integer, intent(in) :: row, column, depth
+      integer(idp), intent(in) :: row, column, depth
       character(len=MAX_WORD_LENGTH), intent(inout) :: current_word
       character(len=MAX_WORD_LENGTH), allocatable, intent(inout) :: local_words(:)
       logical, intent(inout) :: visited(:, :)
-      integer, intent(inout) :: local_count
+      integer(idp), intent(inout) :: local_count
 
       ! Local variables
-      integer :: row_offset, column_offset, next_row, next_column, first_match
+      integer(idp) :: row_offset, column_offset, next_row, next_column, first_match
       character(len=MAX_WORD_LENGTH) :: prefix
 
       current_word(depth:depth) = letter_grid(row, column)
@@ -162,18 +169,21 @@ contains
   !!    character(len=*), intent(in) :: candidate
   !!        Word to add to array
   !!  USES
+  !!    iso_fortran_env, idp => int64
   !!    global, only: MAX_WORD_LENGTH
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
   !!   22/11/2026
   !!  MODIFICATION HISTORY
-
+  !!   23/11/2026 chpxu: iso_fortran_env int64
    subroutine append_words_local(words, local_word_count, candidate)
+      
+      use, intrinsic :: iso_fortran_env, idp => int64
       use global, only: MAX_WORD_LENGTH
       implicit none
       character(len=MAX_WORD_LENGTH), allocatable, intent(inout) :: words(:)
-      integer, intent(inout) :: local_word_count
+      integer(idp), intent(inout) :: local_word_count
       character(len=*), intent(in) :: candidate
 
       ! Local variables
@@ -185,7 +195,6 @@ contains
       end if
       local_word_count = local_word_count + 1
       words(local_word_count) = candidate
-
    end subroutine append_words_local
 
    ! -------------------------------------------------------------------
@@ -201,17 +210,20 @@ contains
   !!    character(len=*), intent(in) :: string
   !!         String to compare (thread private copy)
   !!  USES
+  !!    iso_fortran_env, idp => int64
   !!    global, only: dictionary
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
   !!   22/11/2026
   !!  MODIFICATION HISTORY
-   integer function lower_bound(string)
+  !!   23/11/2026 chpxu: iso_fortran_env int64
+   integer(idp) function lower_bound(string)
+      use, intrinsic :: iso_fortran_env, idp => int64
       use global, only: dictionary
       implicit none
       character(len=*), intent(in) :: string
-      integer :: low, mid, high
+      integer(idp) :: low, mid, high
 
       low = 1
       high = word_count + 1
@@ -248,11 +260,14 @@ contains
   !!   21/11/2026
   !!  MODIFICATION HISTORY
    subroutine load_dictionary(filename)
+
+      use, intrinsic :: iso_fortran_env, idp => int64
       use global, only: dictionary, word_count
       implicit none
       character(len=*), intent(in) :: filename
       character(len=256) :: raw_word, trimmed
-      integer :: iounit, ios, word_length, line_count
+      integer(idp) :: iounit, ios
+      integer(idp) :: word_length, line_count
       logical :: alpha
 
       open (newunit=iounit, file=filename, status="old", action="read", iostat=ios)
@@ -287,7 +302,6 @@ contains
          !  and what dicitionary did you get this from??
          if (.not. alpha) cycle
          dictionary(word_count) = trimmed(1:word_length)
-         !dictionary = dictionary(1:word_count)
       end do
       close (iounit)
    end subroutine load_dictionary
@@ -311,10 +325,11 @@ contains
   !!   21/11/2026
   !!  MODIFICATION HISTORY
    function to_lower(text) result(lowered)
+      use, intrinsic :: iso_fortran_env, idp => int64
       implicit none
       character(len=*), intent(in) :: text
       character(len=len(text)) :: lowered
-      integer :: char_position
+      integer(idp) :: char_position
 
       lowered = text
       do char_position = 1, len(text)
@@ -350,36 +365,36 @@ contains
   !!  CREATION DATE
   !!   21/11/2026
   !!  MODIFICATION HISTORY
+  !!   23/11/2026 chpxu: Correctly interpret grid_size and close iounit; 
+  !       iso_fortran_env
    subroutine read_params(filename)
+      use, intrinsic :: iso_fortran_env, idp => int64 
       use global, only: letter_grid, grid_size
       implicit none
       character(len=256), intent(in) :: filename
 
-      integer :: iounit, ios
-      integer :: row_index, column_index
-      character(len=256) :: input_line
+      integer(idp) :: iounit, ios
+      integer(idp) :: row_index, column_index
       ! This iounit is params.txt
       ! First number: grid_size, then letter grid
       open (newunit=iounit, file=filename, status="old", action="read", iostat=ios)
-      read (iounit, '(I1)', iostat=ios) grid_size
-      print *, grid_size
       if (ios /= 0) call abort
+      read (iounit, *, iostat=ios) grid_size
+
+      if(grid_size <= 1) stop "Grid size cannot be 1 or smaller"
       if (allocated(letter_grid)) deallocate (letter_grid)
       allocate (letter_grid(grid_size, grid_size))
-      ! Read grid_size entries at a time
 
       do row_index = 1, grid_size
-         !do
-         read (iounit, '(A)', iostat=ios) input_line
-         if (ios /= 0) stop 'Unexpected end of input of letter grid.'
-
-         input_line = to_lower(input_line)
-
-         if (len_trim(input_line) >= grid_size) print *, input_line
+         read (iounit, *, iostat=ios) letter_grid(row_index, :)
+         if (ios /= 0) stop 'Grid row supplied shorter than grid_size.'
+      end do ! row_index, initially fill letter_grid
+      do row_index = 1, grid_size
          do column_index = 1, grid_size
-            read (input_line, *, iostat=ios) letter_grid(row_index, 1:column_index)
-         end do
-      end do
+            letter_grid(row_index, column_index) =  to_lower(letter_grid(row_index, column_index))
+          end do
+      end do ! end do to_lower
+      close(iounit)
    end subroutine read_params
    ! -------------------------------------------------------------------
    ! subroutine sort_found_words
@@ -393,22 +408,25 @@ contains
   !!  INPUTS
   !!   character(len=*), intent(inout) :: words(:)
   !!      Array of words to sort alphabetically
-  !!   character(len=256), intent(in) :: found_word_count
+  !!   integer, intent(in) :: found_word_count
   !!      Total number of words found (including duplicates)
+  !!  USES 
+  !!   global, only: word_count - total found word count
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
   !!   22/11/2026
   !!  MODIFICATION HISTORY
    subroutine sort_found_words(words, found_word_count)
+      use, intrinsic :: iso_fortran_env, idp => int64
       use global, only: word_count
       implicit none
       character(len=*), intent(inout) :: words(:)
-      integer, intent(in) :: found_word_count
+      integer(idp), intent(in) :: found_word_count
 
       ! Local variables
       character(len=MAX_WORD_LENGTH) :: temp_word
-      integer :: gap, inner_position, outer_position
+      integer(idp) :: gap, inner_position, outer_position
 
       gap = found_word_count/2
       do while (gap > 0)
@@ -437,21 +455,23 @@ contains
   !!  INPUTS
   !!   character(len=*), intent(inout) :: words(:)
   !!      Array of words to dedupe
-  !!   character(len=256), intent(inout) :: word_count
+  !!   character(len=*), intent(inout) :: word_count
   !!      Number of (unique) words, which will be mutated from input
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
   !!   22/11/2026
   !!  MODIFICATION HISTORY
+  !!   23/11/2026 chpxu: Return if word_count is <2
    subroutine remove_duplicates(words, word_count)
+      use, intrinsic :: iso_fortran_env, idp => int64
       implicit none
       character(len=*), intent(inout) :: words(:)
-      integer, intent(inout) :: word_count
+      integer(idp), intent(inout) :: word_count
 
       ! Local variables
-      integer :: position, nunique
-
+      integer(idp) :: position, nunique
+      if (word_count < 2) return
       nunique = 1
       do position = 1, word_count
          if (words(position) /= words(nunique)) then

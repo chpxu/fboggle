@@ -20,15 +20,15 @@ module benchmark_params
    use, intrinsic :: iso_fortran_env, dp => int64
    implicit none 
 
-   integer(dp), parameter :: GRID_SIZES(10) = [4, 8, 16, 32, &
-                                           64, 128, 256, 512, 1024, 2048]
+   integer(dp), parameter :: GRID_SIZES(9) = [4, 8, 16, 32, &
+                                           64, 128, 256, 512, 1024]
    integer(dp), parameter :: SEED_VALUE = 20261123                       
    integer(dp), parameter :: ALPHABET_SIZE = 26
    character(len=ALPHABET_SIZE), parameter :: ALPHABET = 'abcdefghijklmnopqrstuvwxyz'
    integer(dp), parameter :: LETTER_WEIGHTS(ALPHABET_SIZE) = [8, 2, 3, 4, 12, 2, 2, 6, 7, 1, &
                                                           1, 4, 2, 7, 8, 2, 1, 6, 6, 9, 3, 1, 2, 1, 2, 1]
 
-   character(len=256), parameter :: benchmark_dir = "./"
+   character(len=256), parameter :: benchmark_dir = "./benchmarks"
 end module benchmark_params
 program BoggleBenchmark
    use benchmark_params

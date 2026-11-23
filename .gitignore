@@ -5,3 +5,4 @@ boggle
 build
 bin/*
 .artifacts
+benchmarks/params*
