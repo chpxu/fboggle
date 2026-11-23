@@ -22,10 +22,12 @@ It is preferred to build with `CMAKE>=3.27` or `CMAKE>=4.x` (tested with v4) tho
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 export OMP_NUM_THREADS=N # set N to an integer
-./build/fboggle <path/to/dictionary.txt> <path/to/params.txt>
+./bin/fboggle <path/to/dictionary.txt> <path/to/params.txt>
 ```
 
-A default English dictionary is provided in `src/words_alpha.txt`, provided from [this GitHub repo](https://github.com/dwyl/english-words/blob/master/words_alpha.txt). The program looks for `words_alpha.txt` by default in the same folder as the binary. Similarly, example `params.txt` is supplied in the `examples` directory.
+Some default English dictionaries are provided in the `dictionary` folder:
+- `words_alpha.txt` is from [dwyl/english-words](https://github.com/dwyl/english-words/blob/master/words_alpha.txt)
+- `twl06.txt, sowpods.txt` is taken from [kamilmielnik/scrabble-dictionaries](https://github.com/kamilmielnik/scrabble-dictionaries/tree/master)
 
 ## Development
 
@@ -33,6 +35,16 @@ A default English dictionary is provided in `src/words_alpha.txt`, provided from
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 ```
 
+### Style guide 
+
+Every procedure should be well-documented, with modules, inputs and outputs made explicit - see `src/boggle.f90` for examples. Every `end` line should end with the procedure name and `if/do` blocks should be documented if nested.
+
+Linting is done with `fortls`. Formatting is done with [fprettify](https://github.com/fortran-lang/fprettify). Create a Python `venv` via your preferred method, and then run
+```
+[uv] pip install fprettify fortls 
+```
+
+Then set up your preferred editor with the Modern Fortran extension or equivalent, and you should be good to go!
 ## Roadmap
 
 - Comprehensive examples and stress tests/benchmarks

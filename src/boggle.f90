@@ -18,9 +18,7 @@ program Boggle
    integer :: found_count, tcount, merge_position, start_row, start_column, start_index
    integer ::  i
    logical, allocatable :: tvisited(:, :)
-   ! Default source: https://github.com/dwyl/english-words/blob/master/words_alpha.txt
-   ! Otherwise load user-supplied dictionary
-   dictionary_file = 'words_alpha.txt'
+   dictionary_file = 'sowpods.txt'
    if (command_argument_count() >= 1) then
       call get_command_argument(1, dictionary_file)
    end if
@@ -63,12 +61,12 @@ program Boggle
    call remove_duplicates(found_words, found_count)
    print '(/1x, A, I10, A)', 'Found ', found_count, ' word(s):'
    output_file = "found.txt"
-   open(newunit=output_unit, file=output_file, status='replace', action='write',iostat=outputios)
+   open (newunit=output_unit, file=output_file, status='replace', action='write', iostat=outputios)
    if (outputios /= 0) stop "Error writing to output file"
    do i = 1, found_count
-    write(output_unit, '(A)') trim(found_words(i))
+      write (output_unit, '(A)') trim(found_words(i))
    end do
-   close(output_unit)
+   close (output_unit)
 contains
    ! -------------------------------------------------------------------
    ! subroutine word_search
@@ -91,11 +89,11 @@ contains
   !!   character(len=256), intent(in) :: row, column, depth - holds information
   !!      about the current letter and how far the search has gone
   !!  character(len=MAX_WORD_LENGTH), intent(inout) :: current_word
-  !!  logical, intent(inout) :: visited(:,:) - whether a cell has been visited 
+  !!  logical, intent(inout) :: visited(:,:) - whether a cell has been visited
   !!      the current search, as we cannot double back
   !!  character(len=MAX_WORD_LENGTH), intent(inout) :: local_words(:)
   !!    A thread's store of words it has found
-  !!  USES 
+  !!  USES
   !!    global, only: dictionary, word_count, MAX_WORD_LENGTH, MIN_WORD_LENGTH
   !!  AUTHOR
   !!   chpxu
@@ -146,15 +144,15 @@ contains
       visited(row, column) = .false.
       current_word(depth:depth) = ""
    end subroutine word_search
-  ! -------------------------------------------------------------------
+   ! -------------------------------------------------------------------
    ! subroutine append_words_local
    ! -------------------------------------------------------------------
   !!  NAME
-  !!    append_words_local 
+  !!    append_words_local
   !!  USAGE
   !!    append_words_local(words, local_word_count, candidate)
   !!  PURPOSE
-  !!    Appends word 'candidate' to array 'words' and updates local_word_count. 
+  !!    Appends word 'candidate' to array 'words' and updates local_word_count.
   !!    This is called per-thread.
   !!  INPUTS
   !!    character(len=MAX_WORD_LENGTH), allocatable, intent(inout) :: words(:)
@@ -163,7 +161,7 @@ contains
   !!         Number of words (thread private copy)
   !!    character(len=*), intent(in) :: candidate
   !!        Word to add to array
-  !!  USES 
+  !!  USES
   !!    global, only: MAX_WORD_LENGTH
   !!  AUTHOR
   !!   chpxu
@@ -190,11 +188,11 @@ contains
 
    end subroutine append_words_local
 
-    ! -------------------------------------------------------------------
+   ! -------------------------------------------------------------------
    ! function lower_bound
    ! -------------------------------------------------------------------
   !!  NAME
-  !!    lower_bound  
+  !!    lower_bound
   !!  USAGE
   !!    lower_bound(string)
   !!  PURPOSE
@@ -202,7 +200,7 @@ contains
   !!  INPUTS
   !!    character(len=*), intent(in) :: string
   !!         String to compare (thread private copy)
-  !!  USES 
+  !!  USES
   !!    global, only: dictionary
   !!  AUTHOR
   !!   chpxu
@@ -238,11 +236,11 @@ contains
   !!    load_dictionary(filename)
   !!  PURPOSE
   !!    Loads in a file to use as a dictionary. The file should be letters-only,
-  !!      and be individual words on a newline 
+  !!      and be individual words on a newline
   !!  INPUTS
   !!  character(len=*), intent(in) :: filename
   !!    Path to file containing dictionary
-  !!  USES 
+  !!  USES
   !!    global, only: dictionary, word_count
   !!  AUTHOR
   !!   chpxu
@@ -254,7 +252,7 @@ contains
       implicit none
       character(len=*), intent(in) :: filename
       character(len=256) :: raw_word, trimmed
-      integer :: iounit, ios,  word_length, line_count
+      integer :: iounit, ios, word_length, line_count
       logical :: alpha
 
       open (newunit=iounit, file=filename, status="old", action="read", iostat=ios)
@@ -302,11 +300,11 @@ contains
   !!  USAGE
   !!    to_lower(text)
   !!  PURPOSE
-  !!    Turns all characters of a string lowercase 
+  !!    Turns all characters of a string lowercase
   !!  INPUTS
-  !!  character(len=*), intent(in) :: text 
+  !!  character(len=*), intent(in) :: text
   !!    String to lowercase
-  !!  USES 
+  !!  USES
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
@@ -383,11 +381,11 @@ contains
          end do
       end do
    end subroutine read_params
-  ! -------------------------------------------------------------------
+   ! -------------------------------------------------------------------
    ! subroutine sort_found_words
    ! -------------------------------------------------------------------
   !!  NAME
-  !!   sort_found_words 
+  !!   sort_found_words
   !!  USAGE
   !!    sort_found_words(words, found_word_count)
   !!  PURPOSE
@@ -427,7 +425,7 @@ contains
          gap = gap/2
       end do
    end subroutine sort_found_words
-  ! -------------------------------------------------------------------
+   ! -------------------------------------------------------------------
    ! subroutine remove_duplicates
    ! -------------------------------------------------------------------
   !!  NAME
@@ -440,7 +438,7 @@ contains
   !!   character(len=*), intent(inout) :: words(:)
   !!      Array of words to dedupe
   !!   character(len=256), intent(inout) :: word_count
-  !!      Number of (unique) words, which will be mutated from input 
+  !!      Number of (unique) words, which will be mutated from input
   !!  AUTHOR
   !!   chpxu
   !!  CREATION DATE
