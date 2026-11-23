@@ -1,0 +1,77 @@
+name: BenchmarkBoggle
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DICTIONARY_DIR: dictionary  
+      THREAD_COUNTS: "1 2 4"      
+      RUN_TIMEOUT: 6000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y gfortran cmake
+
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Generate benchmark grids
+        run: ./bin/bogglebenchmark benchmarks
+
+      - name: Run benchmarks
+        run: |
+          echo "dictionary,grid_size,threads,seconds,words_found,status" > results.csv
+          failed=0
+          for dictionary in "$DICTIONARY_DIR"/*; do
+            [ -f "$dictionary" ] || continue
+            dictionary_name=$(basename "$dictionary")
+            for params in $(ls benchmarks/params_*.txt | sort -V); do
+              grid_size=$(head -n 1 "$params")
+              for threads in $THREAD_COUNTS; do
+                rm -f found.txt
+                start=$(date +%s.%N)
+                if OMP_NUM_THREADS=$threads timeout "$RUN_TIMEOUT" \
+                     ./bin/fboggle "$dictionary" "$params" > /dev/null; then
+                  status=ok
+                else
+                  status=FAIL
+                  failed=1
+                fi
+                end=$(date +%s.%N)
+                seconds=$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", e - s }')
+                words=NA
+                [ -f found.txt ] && words=$(wc -l < found.txt)
+                echo "${dictionary_name},${grid_size}x${grid_size},${threads},${seconds},${words},${status}" >> results.csv
+                echo "${dictionary_name} ${grid_size}x${grid_size} threads=${threads}: ${seconds}s (${status})"
+              done
+            done
+          done
+
+          {
+            echo "### Boggle benchmark results"
+            echo
+            echo "| Dictionary | Grid | Threads | Seconds | Words found | Status |"
+            echo "|---|---|---|---|---|---|"
+            tail -n +2 results.csv | awk -F, '{ printf "| %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6 }'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          exit $failed
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            results.csv
+            benchmarks/

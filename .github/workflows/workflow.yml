@@ -1,0 +1,32 @@
+name: Format
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.f90'
+      - '**.F90'
+      - '.fprettify.rc'
+      - '.github/workflows/format.yml'
+  pull_request:
+    paths:
+      - '**.f90'
+      - '**.F90'
+      - '.fprettify.rc'
+      - '.github/workflows/format.yml'
+
+jobs:
+  fprettify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install fprettify
+        run: pip install fprettify
+
+      - name: Run fprettify
+        run: git ls-files -z '*.f90' '*.F90' | xargs -0 --no-run-if-empty fprettify

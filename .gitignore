@@ -4,3 +4,4 @@ boggle
 *.log
 build
 bin/*
+.artifacts
