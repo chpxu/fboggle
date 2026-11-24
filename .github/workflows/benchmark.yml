@@ -30,6 +30,9 @@ jobs:
 
       - name: Run benchmarks
         run: |
+          cpu_info="$(lscpu | awk -F: '/^Model name/ {sub(/^[ \t]+/, "", $2); print $2; exit}'), $(nproc) logical cores"
+          echo "CPU: ${cpu_info}"
+          echo "# CPU: ${cpu_info}" > results.csv
           echo "dictionary,grid_size,threads,seconds,words_found,status" > results.csv
           failed=0
           for dictionary in "$DICTIONARY_DIR"/*; do
@@ -37,6 +40,7 @@ jobs:
             dictionary_name=$(basename "$dictionary")
             for params in $(ls benchmarks/params_*.txt | sort -V); do
               grid_size=$(head -n 1 "$params")
+              tile_len=$(sed -n 2p "$params")
               for threads in $THREAD_COUNTS; do
                 rm -f found.txt
                 start=$(date +%s.%N)
@@ -51,7 +55,7 @@ jobs:
                 seconds=$(awk -v s="$start" -v e="$end" 'BEGIN { printf "%.3f", e - s }')
                 words=NA
                 [ -f found.txt ] && words=$(wc -l < found.txt)
-                echo "${dictionary_name},${grid_size}x${grid_size},${threads},${seconds},${words},${status}" >> results.csv
+                echo "${dictionary_name},${grid_size}x${grid_size}_${tile_len},${threads},${seconds},${words},${status}" >> results.csv
                 echo "${dictionary_name} ${grid_size}x${grid_size} threads=${threads}: ${seconds}s (${status})"
               done
             done
@@ -62,7 +66,7 @@ jobs:
             echo
             echo "| Dictionary | Grid | Threads | Seconds | Words found | Status |"
             echo "|---|---|---|---|---|---|"
-            tail -n +2 results.csv | awk -F, '{ printf "| %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6 }'
+            tail -n +3 results.csv | awk -F, '{ printf "| %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6 }'
           } >> "$GITHUB_STEP_SUMMARY"
 
           exit $failed

@@ -1,15 +1,17 @@
 module global
+   use, intrinsic :: iso_fortran_env, only: error_unit, idp => int64
+   implicit none
    integer, parameter :: MAX_WORD_LENGTH = 32
    integer, parameter :: MIN_WORD_LENGTH = 3
+
    character(len=MAX_WORD_LENGTH), allocatable :: dictionary(:)
    character(len=MAX_WORD_LENGTH), allocatable :: found_words(:)
-   character, allocatable :: letter_grid(:, :)
+   character(len=:), allocatable :: letter_grid(:, :)
 
-   integer :: grid_size, word_count
+   integer :: grid_size, tile_len, word_count
 end module global
 
 program Boggle
-   use, intrinsic :: iso_fortran_env, idp => int64
    use global
    implicit none
    character(len=256) :: dictionary_file, params_file, output_file
@@ -30,7 +32,7 @@ program Boggle
       call get_command_argument(2, params_file)
    end if
    call read_params(params_file)
-   allocate (found_words(size(dictionary)*10))
+   allocate (found_words(size(dictionary)*grid_size))
    found_count = 0
    !$omp parallel private(tvisited, tword, twords, tcount, merge_position, start_row, start_column)
    allocate (tvisited(grid_size, grid_size))
@@ -107,9 +109,8 @@ contains
   !!   23/11/2026 chpxu: iso_fortran_env int64
    recursive subroutine word_search(row, column, depth, &
                                     current_word, visited, local_words, local_count)
-      
-      use, intrinsic :: iso_fortran_env, idp => int64
-      use global, only: dictionary, word_count, MAX_WORD_LENGTH, MIN_WORD_LENGTH
+
+      use global, only: dictionary, word_count, MAX_WORD_LENGTH, MIN_WORD_LENGTH, idp
       implicit none
       integer(idp), intent(in) :: row, column, depth
       character(len=MAX_WORD_LENGTH), intent(inout) :: current_word
@@ -178,9 +179,8 @@ contains
   !!  MODIFICATION HISTORY
   !!   23/11/2026 chpxu: iso_fortran_env int64
    subroutine append_words_local(words, local_word_count, candidate)
-      
-      use, intrinsic :: iso_fortran_env, idp => int64
-      use global, only: MAX_WORD_LENGTH
+
+      use global, only: MAX_WORD_LENGTH, idp
       implicit none
       character(len=MAX_WORD_LENGTH), allocatable, intent(inout) :: words(:)
       integer(idp), intent(inout) :: local_word_count
@@ -352,11 +352,17 @@ contains
   !!   Reads a file which contains the letter parameters needed to run Boggle.
   !!   The file is structured as so:
   !!    <int>  ! grid_size
+  !!    <int>  ! max letters per tile
   !!    a b c d  ! grid_size entries
   !!    a b c d  ! grid_size entries
   !!    a b c d  ! grid_size entries
   !!    a b c d  ! grid_size entries
-  !!    where a b c d are letters of the alphabet. The letters MUST be space-separated.
+  !!    where a b c d are letters of the alphabet. The letters MUST be space-separated. Any tile may contain multiple letters, so
+  !!    a b qu d
+  !!    a b c d
+  !!    a b c d
+  !!    is b c d
+  !!    is also a valid 4x4 grid
   !!    Capitals and non-capitals are allowed, though all will be converted to lowercase
   !!  INPUTS
   !!   character(len=256), intent(in) :: filename
@@ -365,11 +371,10 @@ contains
   !!  CREATION DATE
   !!   21/11/2026
   !!  MODIFICATION HISTORY
-  !!   23/11/2026 chpxu: Correctly interpret grid_size and close iounit; 
-  !       iso_fortran_env
+  !!   23/11/2026 chpxu: Correctly interpret grid_size and close iounit;
+  !!   24/11/2026 chpxu: Allow multi-letter tiles and introduce error_unit
    subroutine read_params(filename)
-      use, intrinsic :: iso_fortran_env, idp => int64 
-      use global, only: letter_grid, grid_size
+      use global, only: letter_grid, grid_size, tile_len, idp, MAX_WORD_LENGTH, error_unit
       implicit none
       character(len=256), intent(in) :: filename
 
@@ -380,21 +385,31 @@ contains
       open (newunit=iounit, file=filename, status="old", action="read", iostat=ios)
       if (ios /= 0) call abort
       read (iounit, *, iostat=ios) grid_size
-
-      if(grid_size <= 1) stop "Grid size cannot be 1 or smaller"
+      if (grid_size <= 1) stop "Grid size cannot be 1 or smaller"
       if (allocated(letter_grid)) deallocate (letter_grid)
-      allocate (letter_grid(grid_size, grid_size))
+      read (iounit, *, iostat=ios) tile_len
+      if (tile_len < 1) then
+         write (error_unit, *) "read_params: minimum 1 letter per tile"
+      end if ! if not min 1 letter per tile
+      if (tile_len > MAX_WORD_LENGTH - 1) then
+         write (error_unit, '(A,I10)') "read_params: maximum number of letters per tile must be less than ", MAX_WORD_LENGTH - 1
+         stop 1
+      end if ! if tile_len per word too long
 
+      allocate (character(len=tile_len) :: letter_grid(grid_size, grid_size))
       do row_index = 1, grid_size
          read (iounit, *, iostat=ios) letter_grid(row_index, :)
-         if (ios /= 0) stop 'Grid row supplied shorter than grid_size.'
+         if (ios /= 0) then
+            write (error_unit, *) 'Grid row supplied shorter than grid_size.'
+            stop 1
+         end if ! if not enough letters
       end do ! row_index, initially fill letter_grid
       do row_index = 1, grid_size
          do column_index = 1, grid_size
-            letter_grid(row_index, column_index) =  to_lower(letter_grid(row_index, column_index))
-          end do
+            letter_grid(row_index, column_index) = to_lower(letter_grid(row_index, column_index))
+         end do
       end do ! end do to_lower
-      close(iounit)
+      close (iounit)
    end subroutine read_params
    ! -------------------------------------------------------------------
    ! subroutine sort_found_words
@@ -410,7 +425,7 @@ contains
   !!      Array of words to sort alphabetically
   !!   integer, intent(in) :: found_word_count
   !!      Total number of words found (including duplicates)
-  !!  USES 
+  !!  USES
   !!   global, only: word_count - total found word count
   !!  AUTHOR
   !!   chpxu
