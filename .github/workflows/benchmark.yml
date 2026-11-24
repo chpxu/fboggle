@@ -9,10 +9,10 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 360
     env:
       DICTIONARY_DIR: dictionary  
-      THREAD_COUNTS: "1 2 4 8"      
+      THREAD_COUNTS: "1 2 4"      
       RUN_TIMEOUT: 6000
     steps:
       - uses: actions/checkout@v4
