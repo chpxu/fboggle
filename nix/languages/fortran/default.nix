@@ -82,6 +82,8 @@ in
               [
                 fortran-fpm
                 fortls
+                cmake
+                gnumake
               ]
               ++ [
                 cfg.debugger
@@ -92,6 +94,49 @@ in
                 cfg.fprettify.package
                 # (pkgs."python${config.languages.python.version}".withPackages (_: finalPythonPackages))
               ];
+            commands = [
+              {
+                name = "build";
+                command = ''
+                   if [ ! -d "build" ]; then
+                      mkdir build
+                  else
+                    echo 'y' | rm -r "$PWD/build/"
+                  fi
+                  cmake -S . -B build/ -D CMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+                  cmake --build build
+                '';
+                help = "Build fBoggle project.`";
+              }
+              {
+                name = "debugbuild";
+                command = ''
+                  if [ ! -d "build" ]; then
+                      mkdir build
+                  else
+                    echo 'y' | rm -r "$PWD/build/"
+                  fi
+                  cmake -S . -B build/ -D CMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DENABLE_DEBUG=1
+
+                  cmake --build build
+                '';
+                help = "Build fBoggle in Debug mode.";
+              }
+              {
+                name = "vg";
+                command = ''
+                  valgrind --trace-children=yes --track-fds=yes --track-origins=yes --leak-check=full --show-leak-kinds=all ./build/train_data_processor
+                '';
+                help = "Run valgrind with full leak checking and tracking.";
+              }
+              {
+                name = "fboggle";
+                command = ''
+                  ./build/fboggle
+                '';
+                help = "Run fboggle inside build directory.";
+              }
+            ];
           };
       };
     };
